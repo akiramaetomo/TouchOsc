@@ -192,3 +192,130 @@
     const logMaxFreq = Math.log10(880); // 880Hz
     const relativeY = height - (yPosition - synthAreaRect.top); // Corrected to account for screen offset
     const logFrequency = logMinFreq + (relativeY / height) * (logMaxFreq - logMinFreq);
+    return Math.pow(10, logFrequency);
+  }
+
+  function calculateVolume(xPosition) {
+    const width = synthArea.clientWidth;
+    const dB = -24 + (xPosition / width) * 24; // -24dB to 0dB
+    return baseVolume * Math.pow(10, dB / 20); // Convert dB to linear scale
+  }
+
+  synthArea.addEventListener('touchstart', (event) => {
+    for (let i = 0; i < event.touches.length && i < 2; i++) {
+      const touch = event.touches[i];
+      const frequency = calculateFrequency(touch.clientY);
+      const volume = calculateVolume(touch.clientX);
+      const fingerId = touch.identifier;
+
+      // Display pointer
+      if (!pointers[fingerId]) {
+        pointers[fingerId] = createPointer(`pointer${fingerId}`, i === 0 ? 'pointer1' : 'pointer2');
+      }
+      movePointer(pointers[fingerId], touch.clientX, touch.clientY);
+
+      startOscillator(fingerId, frequency, volume);
+
+      const freqVolDisplay = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
+      if (i === 0) {
+        tap1Display.value = `${touch.clientX}, ${touch.clientY}`;
+        osc1Display.value = freqVolDisplay;
+      } else {
+        tap2Display.value = `${touch.clientX}, ${touch.clientY}`;
+        osc2Display.value = freqVolDisplay;
+      }
+    }
+  });
+
+  synthArea.addEventListener('touchend', (event) => {
+    for (let i = 0; i < event.changedTouches.length; i++) {
+      const touch = event.changedTouches[i];
+      const fingerId = touch.identifier;
+      stopOscillator(fingerId);
+
+      // Remove pointer
+      const pointer = pointers[fingerId];
+      if (pointer) {
+        synthArea.removeChild(pointer);
+        delete pointers[fingerId];
+      }
+    }
+  });
+
+  synthArea.addEventListener('touchmove', (event) => {
+    for (let i = 0; i < event.touches.length && i < 2; i++) {
+      const touch = event.touches[i];
+      const frequency = calculateFrequency(touch.clientY);
+      const volume = calculateVolume(touch.clientX);
+      const fingerId = touch.identifier;
+
+      if (oscillators[fingerId]) {
+        oscillators[fingerId].frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        gainNodes[fingerId].gain.setValueAtTime(volume, audioCtx.currentTime);
+      }
+
+      // Move pointer
+      movePointer(pointers[fingerId], touch.clientX, touch.clientY);
+
+      const freqVolDisplay = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
+      if (i === 0) {
+        tap1Display.value = `${touch.clientX}, ${touch.clientY}`;
+        osc1Display.value = freqVolDisplay;
+      } else {
+        tap2Display.value = `${touch.clientX}, ${touch.clientY}`;
+        osc2Display.value = freqVolDisplay;
+      }
+    }
+  });
+
+  // Mouse event support for desktop
+  let isMouseDown = false;
+
+  synthArea.addEventListener('mousedown', (event) => {
+    isMouseDown = true;
+    const frequency = calculateFrequency(event.clientY);
+    const volume = calculateVolume(event.clientX);
+
+    // Create a single pointer for mouse
+    if (!pointers['mouse']) {
+      pointers['mouse'] = createPointer('pointerMouse', 'pointer1');
+    }
+    movePointer(pointers['mouse'], event.clientX, event.clientY);
+
+    startOscillator('mouse', frequency, volume);
+    tap1Display.value = `${event.clientX}, ${event.clientY}`;
+    osc1Display.value = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
+  });
+
+  synthArea.addEventListener('mouseup', () => {
+    isMouseDown = false;
+    stopOscillator('mouse');
+
+    // Remove pointer
+    if (pointers['mouse']) {
+      synthArea.removeChild(pointers['mouse']);
+      delete pointers['mouse'];
+    }
+  });
+
+  synthArea.addEventListener('mousemove', (event) => {
+    if (isMouseDown) {
+      const frequency = calculateFrequency(event.clientY);
+      const volume = calculateVolume(event.clientX);
+
+      if (oscillators['mouse']) {
+        oscillators['mouse'].frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        gainNodes['mouse'].gain.setValueAtTime(volume, audioCtx.currentTime);
+      }
+
+      // Move pointer
+      movePointer(pointers['mouse'], event.clientX, event.clientY);
+
+      tap1Display.value = `${event.clientX}, ${event.clientY}`;
+      osc1Display.value = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
+    }
+  });
+</script>
+
+</body>
+</html>
