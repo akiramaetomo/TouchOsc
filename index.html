@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=0.75">
+
   <title>Touch Oscillator</title>
   <style>
     body {
@@ -13,8 +15,8 @@
 
     #synthArea {
       width: 100%;
-      height: 400px;
-      border: 2px solid #f0e5d8; /* オフホワイト */
+      height: 600px;
+      border: 3px solid #f0e5d8; /* オフホワイト */
       position: relative;
       touch-action: none;
       background-color: #3c0e1c; /* より濃いワインレッド */
@@ -25,8 +27,8 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      border: 4px solid rgba(80, 0, 0, 0.8); /* 太めの暗い枠線 */
-      box-shadow: 0 0 15px rgba(255, 215, 0, 0.7); /* ゴールド系のぼかし効果 */
+      border: 0px solid rgba(80, 0, 0, 0.8); /* 太めの暗い枠線 */
+      box-shadow: 0 0 50px rgba(255, 215, 0, 0.7); /* ゴールド系のぼかし効果 */
     }
 
     .pointer1 {
@@ -38,8 +40,22 @@
     }
 
     .debug-box {
-      margin: 10px;
+      margin: 20px;
     }
+
+    .debug-box label {
+        display: inline-block;
+        margin-right: 20px;
+        width: 150px; /* ラベルの幅を調整 */
+        white-space: nowrap; /* テキストを折り返さないようにする */
+      }
+  
+      .debug-box input[type="text"] {
+        display: inline-block;
+        width: 300px; /* ラベルの幅を調整 */
+
+      }
+
 
     input, select {
       background-color: #3c0e1c;
@@ -60,12 +76,16 @@
     }
 
     .envelope-controls {
-      margin: 10px 0;
-    }
-
-    .slider {
-      width: 100%;
-    }
+        display: flex;
+        align-items: center;
+        gap: 10px; /* ラベルとスライダーの間のスペース */
+        margin: 0px 0;
+        width: 100%; /* タッチ領域の幅に合わせる */
+      }
+      
+      .slider {
+        flex-grow: 1; /* スライダーを残りのスペースに広げる */
+      }
   </style>
 </head>
 <body>
@@ -85,18 +105,18 @@
 <div class="envelope-controls">
   <label for="attackSlider">Attack:</label>
   <input type="range" id="attackSlider" class="slider" min="0.01" max="2" step="0.01" value="0.5">
-  <br>
   <label for="releaseSlider">Release:</label>
   <input type="range" id="releaseSlider" class="slider" min="0.01" max="2" step="0.01" value="0.5">
 </div>
-
 <div id="synthArea"></div>
 
 <div class="debug-box">
-  <label>Tap 1 X,Y: <input type="text" id="tap1" readonly></label><br>
-  <label>Tap 2 X,Y: <input type="text" id="tap2" readonly></label><br>
-  <label>OSC1 Freq, Vol: <input type="text" id="osc1" readonly></label><br>
-  <label>OSC2 Freq, Vol: <input type="text" id="osc2" readonly></label>
+  <label>Tap 1 X,Y:</label><input type="text" id="tap1" readonly><br>
+  <label>Tap 2 X,Y:</label><input type="text" id="tap2" readonly><br>
+  <label>OSC1 Freq,Vol:</label><input type="text" id="osc1" readonly><br>
+  <label>OSC2 Freq,Vol:</label><input type="text" id="osc2" readonly><br>
+  <label>OSC1 Trig,State:</label><input type="text" id="osc1state" readonly><br>
+  <label>OSC2 Trig,State:</label><input type="text" id="osc2state" readonly>
 </div>
 
 <script>
@@ -104,6 +124,7 @@
   const oscillators = {};
   const gainNodes = {};
   const pointers = {};
+  const onFlags = {}; //by mae
   const baseVolume = 0.5;
 
   const synthArea = document.getElementById('synthArea');
@@ -112,6 +133,8 @@
   const tap2Display = document.getElementById('tap2');
   const osc1Display = document.getElementById('osc1');
   const osc2Display = document.getElementById('osc2');
+  const osc1stDisplay = document.getElementById('osc1state');
+  const osc2stDisplay = document.getElementById('osc2state');
 
   const attackSlider = document.getElementById('attackSlider');
   const releaseSlider = document.getElementById('releaseSlider');
@@ -130,66 +153,96 @@
     pointer.style.left = `${x - 20}px`;
     pointer.style.top = `${y - synthAreaRect.top - 20}px`;
   }
+
+
   function startOscillator(fingerId, frequency, volume) {
     // すでにオシレータが存在する場合は強制的に停止してから新たに発音
     if (oscillators[fingerId]) {
       stopOscillator(fingerId, true); // 強制停止
+
+    }else{
+
+        osc1stDisplay.value = "OSC " + fingerId + " START"; // for debug   
+
     }
   
-  // 少し遅延を入れて確実に停止後、新しいオシレータをトリガ
-  setTimeout(() => {
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    const attackTime = parseFloat(attackSlider.value);
-
-    oscillator.type = waveformSelect.value;
-    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-
-    gainNode.gain.setValueAtTime(0, audioCtx.currentTime); // 初期ゲインをゼロに設定
-    gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attackTime); // アタックの反映
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.start();
-
-    oscillators[fingerId] = oscillator;
-    gainNodes[fingerId] = gainNode;
-  }, 0); // 停止が完了した直後に新しいオシレータを開始
+    // 新しいオシレータを少し遅らせて開始
+    setTimeout(() => {
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      const attackTime = parseFloat(attackSlider.value);
+  
+      oscillator.type = waveformSelect.value;
+      oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+  
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime); // 初期ゲインをゼロに設定
+      gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attackTime); // アタックの反映
+  
+      // オシレータとゲインノードを指IDごとに配列に格納
+      oscillators[fingerId] = oscillator;
+      gainNodes[fingerId] = gainNode;
+  
+      // オシレータとゲインノードの接続
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+  
+      // オシレータを開始
+      oscillator.start();
+    }, 10); // 強制停止後に少し遅らせてオシレータをトリガする
   }
   
-  
-
   function stopOscillator(fingerId, immediate = false) {
     if (oscillators[fingerId]) {
       const releaseTime = parseFloat(releaseSlider.value);
       const currentGain = gainNodes[fingerId].gain.value;
+      const currentOscillator = oscillators[fingerId];  // 現在のオシレータを保存
       gainNodes[fingerId].gain.cancelScheduledValues(audioCtx.currentTime);
   
       if (immediate) {
+        osc1stDisplay.value = "OSC " + fingerId + " force_STOP   " + "immediate:" + immediate ; // for debug   
+
         // 強制停止: リリースを無視して即時停止
         gainNodes[fingerId].gain.setValueAtTime(0, audioCtx.currentTime);
-        oscillators[fingerId].stop(audioCtx.currentTime);
+        currentOscillator.stop(audioCtx.currentTime);
+
+        // オシレータのクリーンアップ
+        setTimeout(() => {
+          // 現在のオシレータが同じか確認
+          if (oscillators[fingerId] === currentOscillator) {
+            oscillators[fingerId].disconnect();
+            gainNodes[fingerId].disconnect();
+            delete oscillators[fingerId];
+            delete gainNodes[fingerId];
+          }
+        }, 0);
       } else {
+        osc1stDisplay.value = "OSC " + fingerId + " normal RELEASE  " + "immediate:" + immediate ; // for debug   
+
         // 通常のリリース
         gainNodes[fingerId].gain.setValueAtTime(currentGain, audioCtx.currentTime);
         gainNodes[fingerId].gain.linearRampToValueAtTime(0, audioCtx.currentTime + releaseTime);
-        oscillators[fingerId].stop(audioCtx.currentTime + releaseTime);
+        currentOscillator.stop(audioCtx.currentTime + releaseTime);
+
+        // リリース完了後にクリーンアップ
+        setTimeout(() => {
+          // 現在のオシレータが同じか確認
+          if (oscillators[fingerId] === currentOscillator) {
+            osc1stDisplay.value = "OSC " + fingerId + " release end & clean up"; // for debug   
+            oscillators[fingerId].disconnect();
+            gainNodes[fingerId].disconnect();
+            delete oscillators[fingerId];
+            delete gainNodes[fingerId];
+          }
+        }, releaseTime * 1000);
       }
-      
-      setTimeout(() => {
-        oscillators[fingerId].disconnect();
-        gainNodes[fingerId].disconnect();
-        delete oscillators[fingerId];
-        delete gainNodes[fingerId];
-      }, immediate ? 0 : releaseTime * 1000);
     }
-  }
-  
+}
+
 
   function calculateFrequency(yPosition) {
     const height = synthArea.clientHeight;
-    const logMinFreq = Math.log10(220); // 220Hz
-    const logMaxFreq = Math.log10(880); // 880Hz
+    const logMinFreq = Math.log10(27.5); // 220Hz 27.5,55,110,220,440,880,1760,3520,7040
+    const logMaxFreq = Math.log10(7040); // 880Hz
     const relativeY = height - (yPosition - synthAreaRect.top); // Corrected to account for screen offset
     const logFrequency = logMinFreq + (relativeY / height) * (logMaxFreq - logMinFreq);
     return Math.pow(10, logFrequency);
@@ -201,10 +254,14 @@
     return baseVolume * Math.pow(10, dB / 20); // Convert dB to linear scale
   }
 
+  //イベントリスナー
   synthArea.addEventListener('touchstart', (event) => {
+    event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
+
     for (let i = 0; i < event.touches.length && i < 2; i++) {
-      const touch = event.touches[i];
-      const frequency = calculateFrequency(touch.clientY);
+    //    const touch = event.touches[i];//これは不適切とのこと。以下にした。
+        const touch = event.changedTouches [i];
+        const frequency = calculateFrequency(touch.clientY);
       const volume = calculateVolume(touch.clientX);
       const fingerId = touch.identifier;
 
@@ -218,16 +275,18 @@
 
       const freqVolDisplay = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
       if (i === 0) {
-        tap1Display.value = `${touch.clientX}, ${touch.clientY}`;
+        tap1Display.value = `${touch.clientX.toFixed(2)}, ${touch.clientY.toFixed(2)}`;
         osc1Display.value = freqVolDisplay;
       } else {
-        tap2Display.value = `${touch.clientX}, ${touch.clientY}`;
+        tap2Display.value = `${touch.clientX.toFixed(2)}, ${touch.clientY.toFixed(2)}`;
         osc2Display.value = freqVolDisplay;
       }
     }
   });
 
   synthArea.addEventListener('touchend', (event) => {
+    event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
+
     for (let i = 0; i < event.changedTouches.length; i++) {
       const touch = event.changedTouches[i];
       const fingerId = touch.identifier;
@@ -243,6 +302,8 @@
   });
 
   synthArea.addEventListener('touchmove', (event) => {
+    event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
+
     for (let i = 0; i < event.touches.length && i < 2; i++) {
       const touch = event.touches[i];
       const frequency = calculateFrequency(touch.clientY);
