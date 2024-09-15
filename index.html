@@ -116,7 +116,10 @@
   <label>OSC1 Freq,Vol:</label><input type="text" id="osc1" readonly><br>
   <label>OSC2 Freq,Vol:</label><input type="text" id="osc2" readonly><br>
   <label>OSC1 Trig,State:</label><input type="text" id="osc1state" readonly><br>
-  <label>OSC2 Trig,State:</label><input type="text" id="osc2state" readonly>
+  <label>OSC2 Trig,State:</label><input type="text" id="osc2state" readonly><br>
+   <!-- 新しいデバッグ表示追加 -->
+   <label>Attack Time:</label><input type="text" id="attackDisplay" readonly><br>
+   <label>Release Time:</label><input type="text" id="releaseDisplay" readonly>
 </div>
 
 <script>
@@ -161,9 +164,7 @@
       stopOscillator(fingerId, true); // 強制停止
 
     }else{
-
         osc1stDisplay.value = "OSC " + fingerId + " START"; // for debug   
-
     }
   
     // 新しいオシレータを少し遅らせて開始
@@ -171,7 +172,10 @@
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
       const attackTime = parseFloat(attackSlider.value);
-  
+      
+      attackDisplay.value =  audioCtx.currentTime; //for debug
+      releaseDisplay.value =  audioCtx.currentTime+attackTime; //for debug
+
       oscillator.type = waveformSelect.value;
       oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
   
@@ -254,9 +258,16 @@
     return baseVolume * Math.pow(10, dB / 20); // Convert dB to linear scale
   }
 
-  //イベントリスナー
+  //イベントリスナー***********************************************************************
   synthArea.addEventListener('touchstart', (event) => {
     event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
+
+    // AudioContextを一度だけ再開 for debug
+//    if (!isAudioContextResumed && audioCtx.state === 'suspended') {
+//        await audioCtx.resume();
+//        isAudioContextResumed = true;
+//    }
+
 
     for (let i = 0; i < event.touches.length && i < 2; i++) {
     //    const touch = event.touches[i];//これは不適切とのこと。以下にした。
@@ -376,6 +387,26 @@
       osc1Display.value = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
     }
   });
+
+  const attackDisplay = document.getElementById('attackDisplay');
+  const releaseDisplay = document.getElementById('releaseDisplay');
+  
+  // スライダーの値をリアルタイムで表示するためのリスナー
+  attackSlider.addEventListener('input', () => {
+    attackDisplay.value = attackSlider.value;
+  });
+  
+  releaseSlider.addEventListener('input', () => {
+ //   releaseDisplay.value = releaseSlider.value;
+  });
+  
+  // ページロード時に初期値を表示
+  attackDisplay.value = attackSlider.value;
+  releaseDisplay.value = releaseSlider.value;
+
+
+
+
 </script>
 
 </body>
