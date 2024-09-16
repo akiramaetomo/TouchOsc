@@ -2,33 +2,80 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=0.75">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Touch Oscillator</title>
   <style>
     body {
-      background-color: #2c0a17; /* ワインレッド */
-      color: #f0e5d8; /* オフホワイト */
+      background-color: #2a2a3a; /* ダークモードの背景 */
+      color: #ffffff; /* 高コントラストのテキスト */
       font-family: Arial, sans-serif;
-      font-size: 18px; /* 全体の文字サイズをスマホに合わせて大きく */
+      font-size: 18px;
+      margin: 0;
+      padding: 0 10px 10px 10px; /* 上部のpaddingを削減 */
+      box-sizing: border-box;
+    }
+
+    h1 {
+      color: #f0e5d8;
+      font-size: 24px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .waveform-selector, .envelope-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      display: inline-block;
+      width: 100px;
+      margin-right: 0px; /* 追加または調整 */
+
+    }
+
+    select, input[type="range"], input[type="text"] {
+      background-color: #3c0e1c;
+      color: #f0e5d8;
+      border: 1px solid #f0e5d8;
+      font-size: 18px;
+      padding: 5px;
+      border-radius: 4px;
+    }
+
+    input[type="range"] {
+      width: 200px;
+      margin: 2px 0; /* 上下のギャップを2pxに設定 */
+      margin-left: 0px; /* 必要に応じて調整 */
+
     }
 
     #synthArea {
       width: 100%;
-      height: 600px;
-      border: 3px solid #f0e5d8; /* オフホワイト */
+      height: 60vh; /* ビューポート高さの60% */
+      border: 3px solid #f0e5d8;
       position: relative;
       touch-action: none;
-      background-color: #3c0e1c; /* より濃いワインレッド */
+      background-color: #3c0e1c;
+      border-radius: 8px;
+      overflow: hidden;
     }
 
     .pointer {
       position: absolute;
-      width: 40px;
-      height: 40px;
+      width: 5vw;
+      height: 5vw;
+      min-width: 30px;
+      min-height: 30px;
       border-radius: 50%;
-      border: 0px solid rgba(80, 0, 0, 0.8); /* 太めの暗い枠線 */
-      box-shadow: 0 0 50px rgba(255, 215, 0, 0.7); /* ゴールド系のぼかし効果 */
+      border: 2px solid rgba(80, 0, 0, 0.8);
+      box-shadow: 0 0 40px rgba(255, 215, 0, 0.7);
+      transform: translate(-50%, -50%);
+      transition: transform 0.1s, box-shadow 0.1s;
     }
 
     .pointer1 {
@@ -39,375 +86,382 @@
       background-color: #ffd700; /* より鮮やかなゴールド */
     }
 
+    .pointer.active {
+      transform: translate(-50%, -50%) scale(1.2);
+      box-shadow: 0 0 40px rgba(255, 215, 0, 1);
+    }
+
     .debug-box {
-      margin: 20px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      background-color: #2c0a17;
+      padding: 10px;
+      border-radius: 8px;
     }
 
-    .debug-box label {
-        display: inline-block;
-        margin-right: 20px;
-        width: 150px; /* ラベルの幅を調整 */
-        white-space: nowrap; /* テキストを折り返さないようにする */
-      }
-  
-      .debug-box input[type="text"] {
-        display: inline-block;
-        width: 300px; /* ラベルの幅を調整 */
-
-      }
-
-
-    input, select {
-      background-color: #3c0e1c;
-      color: #f0e5d8;
-      border: 1px solid #f0e5d8;
-      font-size: 18px; /* テキストボックスの文字サイズをスマホ向けに大きく */
-      padding: 5px; /* 余白を追加してタップしやすく */
+    .debug-box h2 {
+      margin-top: 0;
+      text-align: center;
     }
 
-    h1 {
-      color: #f0e5d8;
-      font-size: 24px; /* タイトル文字を大きく */
+    .debug-entry {
+      margin-bottom: 5px;
     }
 
-    label {
-      display: inline-block;
-      width: 100px;
-    }
+    @media (max-width: 600px) {
+      label {
+        width: 80px;
+      }
 
-    .envelope-controls {
-        display: flex;
-        align-items: center;
-        gap: 10px; /* ラベルとスライダーの間のスペース */
-        margin: 0px 0;
-        width: 100%; /* タッチ領域の幅に合わせる */
+      .pointer {
+        width: 10vw;
+        height: 10vw;
       }
-      
-      .slider {
-        flex-grow: 1; /* スライダーを残りのスペースに広げる */
-      }
+    }
   </style>
 </head>
 <body>
 
-<h1>Touch Oscillator</h1>
+  <h1>Touch Oscillator</h1>
 
-<div class="waveform-selector">
-  <label for="waveform">Waveform:</label>
-  <select id="waveform">
-    <option value="sine">Sine</option>
-    <option value="sawtooth">Sawtooth</option>
-    <option value="square">Square</option>
-    <option value="triangle">Triangle</option>
-  </select>
-</div>
+  <div class="waveform-selector">
+    <label for="waveform">Wave:</label>
+    <select id="waveform" aria-label="Waveform Selector">
+      <option value="sine">Sine</option>
+      <option value="sawtooth">Sawtooth</option>
+      <option value="square">Square</option>
+      <option value="triangle">Triangle</option>
+    </select>
+  </div>
 
-<div class="envelope-controls">
-  <label for="attackSlider">Attack:</label>
-  <input type="range" id="attackSlider" class="slider" min="0.01" max="2" step="0.01" value="0.5">
-  <label for="releaseSlider">Release:</label>
-  <input type="range" id="releaseSlider" class="slider" min="0.01" max="2" step="0.01" value="0.5">
-</div>
-<div id="synthArea"></div>
+  <div class="envelope-controls">
+    <label for="attackSlider">Attack:</label>
+    <input type="range" id="attackSlider" class="slider" min="0.01" max="3" step="0.01" value="0.5" aria-label="Attack Time Slider">
+    <label for="releaseSlider">Release:</label>
+    <input type="range" id="releaseSlider" class="slider" min="0.01" max="3" step="0.01" value="0.5" aria-label="Release Time Slider">
+  </div>
 
-<div class="debug-box">
-  <label>Tap 1 X,Y:</label><input type="text" id="tap1" readonly><br>
-  <label>Tap 2 X,Y:</label><input type="text" id="tap2" readonly><br>
-  <label>OSC1 Freq,Vol:</label><input type="text" id="osc1" readonly><br>
-  <label>OSC2 Freq,Vol:</label><input type="text" id="osc2" readonly><br>
-  <label>OSC1 Trig,State:</label><input type="text" id="osc1state" readonly><br>
-  <label>OSC2 Trig,State:</label><input type="text" id="osc2state" readonly><br>
-   <!-- 新しいデバッグ表示追加 -->
-   <label>Attack Time:</label><input type="text" id="attackDisplay" readonly><br>
-   <label>Release Time:</label><input type="text" id="releaseDisplay" readonly>
-</div>
+  <div id="synthArea" tabindex="0" aria-label="Synthesizer Area"></div>
 
-<script>
-  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const oscillators = {};
-  const gainNodes = {};
-  const pointers = {};
-  const onFlags = {}; //by mae
-  const baseVolume = 0.5;
+  <div class="debug-box">
+    <h2>Debug Log</h2>
+    <div id="debugLog"></div>
+  </div>
 
-  const synthArea = document.getElementById('synthArea');
-  const waveformSelect = document.getElementById('waveform');
-  const tap1Display = document.getElementById('tap1');
-  const tap2Display = document.getElementById('tap2');
-  const osc1Display = document.getElementById('osc1');
-  const osc2Display = document.getElementById('osc2');
-  const osc1stDisplay = document.getElementById('osc1state');
-  const osc2stDisplay = document.getElementById('osc2state');
+  <script>
+    (function() {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const MAX_POLYPHONY = 2; // ポリフォニー数の設定
+      const activeVoices = {}; // ポインターIDをキーとするボイスのマッピング
+      const voiceOrder = [];   // ボイスの順序を管理する配列
+      const pointers = {}; // ポインターのDOM要素を管理
 
-  const attackSlider = document.getElementById('attackSlider');
-  const releaseSlider = document.getElementById('releaseSlider');
+      const baseVolume = 0.1;
 
-  const synthAreaRect = synthArea.getBoundingClientRect();
+      const synthArea = document.getElementById('synthArea');
+      const waveformSelect = document.getElementById('waveform');
 
-  function createPointer(id, className) {
-    const pointer = document.createElement('div');
-    pointer.classList.add('pointer', className);
-    pointer.id = id;
-    synthArea.appendChild(pointer);
-    return pointer;
-  }
+      const attackSlider = document.getElementById('attackSlider');
+      const releaseSlider = document.getElementById('releaseSlider');
 
-  function movePointer(pointer, x, y) {
-    pointer.style.left = `${x - 20}px`;
-    pointer.style.top = `${y - synthAreaRect.top - 20}px`;
-  }
+      const debugLog = document.getElementById('debugLog');
 
+      // スライダーの初期値表示
+      const attackDisplay = document.createElement('div');
+      attackDisplay.textContent = `Attack Time: ${attackSlider.value}s`;
+      const releaseDisplay = document.createElement('div');
+      releaseDisplay.textContent = `Release Time: ${releaseSlider.value}s`;
+      debugLog.appendChild(attackDisplay);
+      debugLog.appendChild(releaseDisplay);
 
-  function startOscillator(fingerId, frequency, volume) {
-    // すでにオシレータが存在する場合は強制的に停止してから新たに発音
-    if (oscillators[fingerId]) {
-      stopOscillator(fingerId, true); // 強制停止
+      // スライダーの値をリアルタイムで表示
+      attackSlider.addEventListener('input', () => {
+        attackDisplay.textContent = `Attack Time: ${attackSlider.value}s`;
+      });
 
-    }else{
-        osc1stDisplay.value = "OSC " + fingerId + " START"; // for debug   
-    }
-  
-    // 新しいオシレータを少し遅らせて開始
-    setTimeout(() => {
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      const attackTime = parseFloat(attackSlider.value);
-      
-      attackDisplay.value =  audioCtx.currentTime; //for debug
-      releaseDisplay.value =  audioCtx.currentTime+attackTime; //for debug
+      releaseSlider.addEventListener('input', () => {
+        releaseDisplay.textContent = `Release Time: ${releaseSlider.value}s`;
+      });
 
-      oscillator.type = waveformSelect.value;
-      oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-  
-      gainNode.gain.setValueAtTime(0, audioCtx.currentTime); // 初期ゲインをゼロに設定
-      gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attackTime); // アタックの反映
-  
-      // オシレータとゲインノードを指IDごとに配列に格納
-      oscillators[fingerId] = oscillator;
-      gainNodes[fingerId] = gainNode;
-  
-      // オシレータとゲインノードの接続
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-  
-      // オシレータを開始
-      oscillator.start();
-    }, 10); // 強制停止後に少し遅らせてオシレータをトリガする
-  }
-  
-  function stopOscillator(fingerId, immediate = false) {
-    if (oscillators[fingerId]) {
-      const releaseTime = parseFloat(releaseSlider.value);
-      const currentGain = gainNodes[fingerId].gain.value;
-      const currentOscillator = oscillators[fingerId];  // 現在のオシレータを保存
-      gainNodes[fingerId].gain.cancelScheduledValues(audioCtx.currentTime);
-  
-      if (immediate) {
-        osc1stDisplay.value = "OSC " + fingerId + " force_STOP   " + "immediate:" + immediate ; // for debug   
+      function createPointer(id, className) {
+        const pointer = document.createElement('div');
+        pointer.classList.add('pointer', className);
+        pointer.id = id;
+        synthArea.appendChild(pointer);
+        return pointer;
+      }
 
-        // 強制停止: リリースを無視して即時停止
-        gainNodes[fingerId].gain.setValueAtTime(0, audioCtx.currentTime);
-        currentOscillator.stop(audioCtx.currentTime);
+      function movePointer(pointer, x, y) {
+        pointer.style.left = `${x}px`;
+        pointer.style.top = `${y}px`;
+      }
 
-        // オシレータのクリーンアップ
-        setTimeout(() => {
-          // 現在のオシレータが同じか確認
-          if (oscillators[fingerId] === currentOscillator) {
-            oscillators[fingerId].disconnect();
-            gainNodes[fingerId].disconnect();
-            delete oscillators[fingerId];
-            delete gainNodes[fingerId];
+      function calculateFrequency(yPosition) {
+        const height = synthArea.clientHeight;
+        const relativeY = yPosition;
+        const logMinFreq = Math.log10(27.5); // 27.5Hz
+        const logMaxFreq = Math.log10(7040); // 7040Hz
+        const logFrequency = logMaxFreq - (relativeY / height) * (logMaxFreq - logMinFreq);
+        return Math.pow(10, logFrequency);
+      }
+
+      function calculateVolume(xPosition) {
+        const width = synthArea.clientWidth;
+        const relativeX = xPosition;
+        const dB = -40 + (relativeX / width) * 40; // -40dB to 0dB
+        return baseVolume * Math.pow(10, dB / 20); // dBを線形スケールに変換
+      }
+
+      function startOscillator(pointerEvent, frequency, volume) {
+        const pointerId = pointerEvent.pointerId;
+
+        // ポリフォニー制限に達している場合の処理
+        if (voiceOrder.length >= MAX_POLYPHONY) {
+          // リリース中のボイスを優先的に停止
+          const releasingVoices = voiceOrder.filter(id => activeVoices[id].state === 'releasing');
+          if (releasingVoices.length > 0) {
+            const voiceToStop = releasingVoices[0];
+            stopOscillator(voiceToStop);
+          } else {
+            // 全てのボイスがアクティブな場合、最も古いボイスを停止
+            const oldestVoice = voiceOrder[0];
+            stopOscillator(oldestVoice);
           }
-        }, 0);
-      } else {
-        osc1stDisplay.value = "OSC " + fingerId + " normal RELEASE  " + "immediate:" + immediate ; // for debug   
+        }
 
-        // 通常のリリース
-        gainNodes[fingerId].gain.setValueAtTime(currentGain, audioCtx.currentTime);
-        gainNodes[fingerId].gain.linearRampToValueAtTime(0, audioCtx.currentTime + releaseTime);
-        currentOscillator.stop(audioCtx.currentTime + releaseTime);
+        try {
+          resumeAudioContext();
 
-        // リリース完了後にクリーンアップ
-        setTimeout(() => {
-          // 現在のオシレータが同じか確認
-          if (oscillators[fingerId] === currentOscillator) {
-            osc1stDisplay.value = "OSC " + fingerId + " release end & clean up"; // for debug   
-            oscillators[fingerId].disconnect();
-            gainNodes[fingerId].disconnect();
-            delete oscillators[fingerId];
-            delete gainNodes[fingerId];
+          // オシレーターとゲインノードの作成
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          const attackTime = parseFloat(attackSlider.value);
+
+          oscillator.type = waveformSelect.value;
+          oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + attackTime);
+
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          oscillator.start();
+
+
+          activeVoices[pointerId] = {
+            oscillator: oscillator,
+            gainNode: gainNode,
+            state: 'active', // ボイスの状態を管理
+            startTime: audioCtx.currentTime, // 開始時間を記録
+            attackTime: attackTime // アタックタイムを記録
+          };
+
+
+          // ボイスの順序管理
+          voiceOrder.push(pointerId);
+
+          // ポインターのアクティブ化
+          if (pointers[pointerId]) {
+            pointers[pointerId].classList.add('active');
           }
-        }, releaseTime * 1000);
-      }
-    }
-}
 
+          // デバッグ情報の更新
+        //  updateDebugInfo(pointerId, frequency, volume, 'START');
 
-  function calculateFrequency(yPosition) {
-    const height = synthArea.clientHeight;
-    const logMinFreq = Math.log10(27.5); // 220Hz 27.5,55,110,220,440,880,1760,3520,7040
-    const logMaxFreq = Math.log10(7040); // 880Hz
-    const relativeY = height - (yPosition - synthAreaRect.top); // Corrected to account for screen offset
-    const logFrequency = logMinFreq + (relativeY / height) * (logMaxFreq - logMinFreq);
-    return Math.pow(10, logFrequency);
-  }
-
-  function calculateVolume(xPosition) {
-    const width = synthArea.clientWidth;
-    const dB = -24 + (xPosition / width) * 24; // -24dB to 0dB
-    return baseVolume * Math.pow(10, dB / 20); // Convert dB to linear scale
-  }
-
-  //イベントリスナー***********************************************************************
-  synthArea.addEventListener('touchstart', (event) => {
-    event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
-
-    // AudioContextを一度だけ再開 for debug
-//    if (!isAudioContextResumed && audioCtx.state === 'suspended') {
-//        await audioCtx.resume();
-//        isAudioContextResumed = true;
-//    }
-
-
-    for (let i = 0; i < event.touches.length && i < 2; i++) {
-    //    const touch = event.touches[i];//これは不適切とのこと。以下にした。
-        const touch = event.changedTouches [i];
-        const frequency = calculateFrequency(touch.clientY);
-      const volume = calculateVolume(touch.clientX);
-      const fingerId = touch.identifier;
-
-      // Display pointer
-      if (!pointers[fingerId]) {
-        pointers[fingerId] = createPointer(`pointer${fingerId}`, i === 0 ? 'pointer1' : 'pointer2');
-      }
-      movePointer(pointers[fingerId], touch.clientX, touch.clientY);
-
-      startOscillator(fingerId, frequency, volume);
-
-      const freqVolDisplay = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
-      if (i === 0) {
-        tap1Display.value = `${touch.clientX.toFixed(2)}, ${touch.clientY.toFixed(2)}`;
-        osc1Display.value = freqVolDisplay;
-      } else {
-        tap2Display.value = `${touch.clientX.toFixed(2)}, ${touch.clientY.toFixed(2)}`;
-        osc2Display.value = freqVolDisplay;
-      }
-    }
-  });
-
-  synthArea.addEventListener('touchend', (event) => {
-    event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
-
-    for (let i = 0; i < event.changedTouches.length; i++) {
-      const touch = event.changedTouches[i];
-      const fingerId = touch.identifier;
-      stopOscillator(fingerId);
-
-      // Remove pointer
-      const pointer = pointers[fingerId];
-      if (pointer) {
-        synthArea.removeChild(pointer);
-        delete pointers[fingerId];
-      }
-    }
-  });
-
-  synthArea.addEventListener('touchmove', (event) => {
-    event.preventDefault();  // デフォルトのマウスイベントやスクロールを抑制
-
-    for (let i = 0; i < event.touches.length && i < 2; i++) {
-      const touch = event.touches[i];
-      const frequency = calculateFrequency(touch.clientY);
-      const volume = calculateVolume(touch.clientX);
-      const fingerId = touch.identifier;
-
-      if (oscillators[fingerId]) {
-        oscillators[fingerId].frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        gainNodes[fingerId].gain.setValueAtTime(volume, audioCtx.currentTime);
+        } catch (error) {
+          console.error(`Failed to start oscillator for pointer ID ${pointerId}:`, error);
+        }
       }
 
-      // Move pointer
-      movePointer(pointers[fingerId], touch.clientX, touch.clientY);
+      function stopOscillator(pointerId) {
+        const voice = activeVoices[pointerId];
+        if (!voice) {
+          console.warn(`No active voice found for pointer ID ${pointerId}`);
+          return;
+        }
 
-      const freqVolDisplay = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
-      if (i === 0) {
-        tap1Display.value = `${touch.clientX}, ${touch.clientY}`;
-        osc1Display.value = freqVolDisplay;
-      } else {
-        tap2Display.value = `${touch.clientX}, ${touch.clientY}`;
-        osc2Display.value = freqVolDisplay;
-      }
-    }
-  });
+        try {
+          const releaseTime = parseFloat(releaseSlider.value);
 
-  // Mouse event support for desktop
-  let isMouseDown = false;
+          // ボイスの状態をリリース中に変更
+          voice.state = 'releasing';
 
-  synthArea.addEventListener('mousedown', (event) => {
-    isMouseDown = true;
-    const frequency = calculateFrequency(event.clientY);
-    const volume = calculateVolume(event.clientX);
+          voice.gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+          voice.gainNode.gain.setValueAtTime(voice.gainNode.gain.value, audioCtx.currentTime);
+          voice.gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + releaseTime);
 
-    // Create a single pointer for mouse
-    if (!pointers['mouse']) {
-      pointers['mouse'] = createPointer('pointerMouse', 'pointer1');
-    }
-    movePointer(pointers['mouse'], event.clientX, event.clientY);
+          voice.oscillator.stop(audioCtx.currentTime + releaseTime);
 
-    startOscillator('mouse', frequency, volume);
-    tap1Display.value = `${event.clientX}, ${event.clientY}`;
-    osc1Display.value = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
-  });
+          // onended イベントでクリーンアップ
+          voice.oscillator.onended = () => {
+            voice.oscillator.disconnect();
+            voice.gainNode.disconnect();
+            delete activeVoices[pointerId];
+            const index = voiceOrder.indexOf(pointerId);
+            if (index !== -1) {
+              voiceOrder.splice(index, 1);
+            }
+          };
 
-  synthArea.addEventListener('mouseup', () => {
-    isMouseDown = false;
-    stopOscillator('mouse');
+          // ポインターの非アクティブ化
+          if (pointers[pointerId]) {
+            pointers[pointerId].classList.remove('active');
+          }
 
-    // Remove pointer
-    if (pointers['mouse']) {
-      synthArea.removeChild(pointers['mouse']);
-      delete pointers['mouse'];
-    }
-  });
+          // デバッグ情報の更新
+         // updateDebugInfo(pointerId, null, null, 'STOP');
 
-  synthArea.addEventListener('mousemove', (event) => {
-    if (isMouseDown) {
-      const frequency = calculateFrequency(event.clientY);
-      const volume = calculateVolume(event.clientX);
-
-      if (oscillators['mouse']) {
-        oscillators['mouse'].frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        gainNodes['mouse'].gain.setValueAtTime(volume, audioCtx.currentTime);
+        } catch (error) {
+          console.error(`Failed to stop oscillator for pointer ID ${pointerId}:`, error);
+        }
       }
 
-      // Move pointer
-      movePointer(pointers['mouse'], event.clientX, event.clientY);
+      function resumeAudioContext() {
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+      }
 
-      tap1Display.value = `${event.clientX}, ${event.clientY}`;
-      osc1Display.value = `${frequency.toFixed(4)} Hz, ${(volume * 100).toFixed(4)}%`;
-    }
-  });
+      function createDebugEntry(message) {
+        const entry = document.createElement('div');
+        entry.classList.add('debug-entry');
+        entry.textContent = message;
+        debugLog.appendChild(entry);
+        debugLog.scrollTop = debugLog.scrollHeight;
+      }
 
-  const attackDisplay = document.getElementById('attackDisplay');
-  const releaseDisplay = document.getElementById('releaseDisplay');
-  
-  // スライダーの値をリアルタイムで表示するためのリスナー
-  attackSlider.addEventListener('input', () => {
-    attackDisplay.value = attackSlider.value;
-  });
-  
-  releaseSlider.addEventListener('input', () => {
- //   releaseDisplay.value = releaseSlider.value;
-  });
-  
-  // ページロード時に初期値を表示
-  attackDisplay.value = attackSlider.value;
-  releaseDisplay.value = releaseSlider.value;
+      function updateDebugInfo(pointerId, frequency, volume, state) {
+        let message = `Pointer ${pointerId}: `;
+        if (state === 'START') {
+          message += `Started with Frequency: ${frequency.toFixed(2)} Hz, Volume: ${(volume * 100).toFixed(2)}%`;
+        } else if (state === 'MOVE') {
+          message += `Moved to Frequency: ${frequency.toFixed(2)} Hz, Volume: ${(volume * 100).toFixed(2)}%`;
+        } else if (state === 'STOP') {
+          message += `Stopped`;
+        } else {
+          message += `Unknown state`;
+        }
+        createDebugEntry(message);
+      }
 
+      // Pointer Eventsの使用
+      synthArea.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        const rect = synthArea.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
 
+        const frequency = calculateFrequency(y);
+        const volume = calculateVolume(x);
 
+        startOscillator(event, frequency, volume);
 
-</script>
+        // ポインターの表示
+        if (!pointers[event.pointerId]) {
+          const className = Object.keys(pointers).length === 0 ? 'pointer1' : 'pointer2';
+          pointers[event.pointerId] = createPointer(`pointer${event.pointerId}`, className);
+        }
+        movePointer(pointers[event.pointerId], event.clientX - rect.left, event.clientY - rect.top);
+
+        // ポインターのアクティブ状態
+        pointers[event.pointerId].classList.add('active');
+      });
+
+      synthArea.addEventListener('pointermove', (event) => {
+        if (activeVoices[event.pointerId] && activeVoices[event.pointerId].state === 'active') {
+            const rect = synthArea.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+        
+            const frequency = calculateFrequency(y);
+            const volume = calculateVolume(x);
+        
+            const voice = activeVoices[event.pointerId];
+            voice.oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+        
+            // アタックフェーズが完了したかを確認
+            const timeSinceStart = audioCtx.currentTime - voice.startTime;
+            if (timeSinceStart > voice.attackTime) {
+              // ゲインのスムーズな変更
+              voice.gainNode.gain.linearRampToValueAtTime(volume, audioCtx.currentTime + 0.05);
+            } else {
+              // アタックフェーズ中はゲインを変更しない
+              // 必要に応じてここで処理を追加できます
+            }
+        
+            // ポインターの移動を最適化
+            requestAnimationFrame(() => {
+              movePointer(pointers[event.pointerId], x, y);
+            });
+        
+            // デバッグ情報の更新
+           // updateDebugInfo(event.pointerId, frequency, volume, 'MOVE');
+          }
+        });
+
+      synthArea.addEventListener('pointerup', (event) => {
+        event.preventDefault();
+        stopOscillator(event.pointerId);
+
+        // ポインターの削除
+        if (pointers[event.pointerId]) {
+          synthArea.removeChild(pointers[event.pointerId]);
+          delete pointers[event.pointerId];
+        }
+      });
+
+      synthArea.addEventListener('pointercancel', (event) => {
+        event.preventDefault();
+        stopOscillator(event.pointerId);
+
+        // ポインターの削除
+        if (pointers[event.pointerId]) {
+          synthArea.removeChild(pointers[event.pointerId]);
+          delete pointers[event.pointerId];
+        }
+      });
+
+      // キーボードイベントの追加
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'a' && !activeVoices['keyboard']) { // 'a'キーでオシレーターを開始
+          const frequency = 440; // A4
+          const volume = 0.5;
+          const fakePointerEvent = { pointerId: 'keyboard' };
+          startOscillator(fakePointerEvent, frequency, volume);
+
+          // ポインターの表示
+          if (!pointers['keyboard']) {
+            pointers['keyboard'] = createPointer('pointerKeyboard', 'pointer1');
+          }
+          movePointer(pointers['keyboard'], synthArea.clientWidth / 2, synthArea.clientHeight / 2);
+
+          // ポインターのアクティブ状態
+          pointers['keyboard'].classList.add('active');
+
+          // デバッグ情報の更新
+        //  updateDebugInfo('keyboard', frequency, volume, 'START');
+        }
+      });
+
+      document.addEventListener('keyup', (event) => {
+        if (event.key === 'a' && activeVoices['keyboard']) { // 'a'キーでオシレーターを停止
+          stopOscillator('keyboard');
+
+          // ポインターの削除
+          if (pointers['keyboard']) {
+            synthArea.removeChild(pointers['keyboard']);
+            delete pointers['keyboard'];
+          }
+        }
+      });
+
+      // 初期フォーカスを synthArea に設定
+      synthArea.focus();
+
+    })();
+  </script>
 
 </body>
 </html>
